@@ -1,4 +1,4 @@
-declare interface IDynamicContentWebPartWebPartStrings {
+declare interface IDynamicContentWebPartStrings {
   PropertyPaneDescription: string;
   BasicGroupName: string;
   DescriptionFieldLabel: string;
@@ -13,7 +13,7 @@ declare interface IDynamicContentWebPartWebPartStrings {
   UnknownEnvironment: string;
 }
 
-declare module 'DynamicContentWebPartWebPartStrings' {
-  const strings: IDynamicContentWebPartWebPartStrings;
+declare module 'DynamicContentWebPartStrings' {
+  const strings: IDynamicContentWebPartStrings;
   export = strings;
 }
