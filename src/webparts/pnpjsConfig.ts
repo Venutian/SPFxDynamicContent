@@ -5,7 +5,12 @@ let sp: SPFI;
 
 export const getSP = (context: any): SPFI => {
     if (!sp) {
-        sp = spfi().using(SPFx(context)); // Bind SPFx context using the correct path
+        try {
+            sp = spfi().using(SPFx(context)); // Bind SPFx context
+            console.log("PnP.js initialized successfully.");
+        } catch (error) {
+            console.error("Error initializing PnP.js:", error);
+        }
     }
     return sp;
 };

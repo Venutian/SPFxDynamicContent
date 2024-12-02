@@ -4,14 +4,13 @@ import {
     IPropertyPaneConfiguration,
     PropertyPaneTextField
 } from '@microsoft/sp-property-pane';
-import {BaseClientSideWebPart} from '@microsoft/sp-webpart-base';
+import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
 
 import DynamicContentComponent from './components/DynamicContentWebPart';
 
-import {IDynamicContentWebPartProps} from './components/IDynamicContentWebPartProps';
-import {getSP} from "../pnpjsConfig"; // PnP.js config import
-import {SPFI} from "@pnp/sp";
-
+import { IDynamicContentWebPartProps } from './components/IDynamicContentWebPartProps';
+import { getSP } from "../pnpjsConfig"; // PnP.js config import
+import { SPFI } from "@pnp/sp";
 
 export default class DynamicContentWebPart extends BaseClientSideWebPart<IDynamicContentWebPartProps> {
 
@@ -28,14 +27,21 @@ export default class DynamicContentWebPart extends BaseClientSideWebPart<IDynami
             DynamicContentComponent,
             {
                 description: this.properties.description,
-                userRole: this.properties.userRole,
+                userRole: this.properties.userRole || "Admin", // Set a default role for demo
                 sp: this.sp,
                 context: this.context,
-                listName: this.properties.listName
+                listName: this.properties.listName,
+                demoMode: true, // Enable demo mode
             }
         );
 
         ReactDom.render(element, this.domElement);
+    }
+
+
+    public onDispose(): void {
+        // Unmount React component to avoid memory leaks
+        ReactDom.unmountComponentAtNode(this.domElement);
     }
 
     protected getPropertyPaneConfiguration(): IPropertyPaneConfiguration {
