@@ -1,39 +1,40 @@
-@import '~@fluentui/react/dist/sass/References.scss';
-
 .dynamicContentWebPart {
-  background-color: #f3f3f3;
-  border-radius: 5px;
-  overflow: hidden;
-  padding: 1em;
-  color: var(--bodyText);
-  &.teams {
-    font-family: $ms-font-family-fallbacks;
-  }
-}
-
-.linksContainer {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-}
+  justify-content: center;
+  gap: 16px;
+  padding: 20px;
 
-.linkCard {
-  background-color: #0078d4;
-  color: #ffffff;
-  padding: 10px;
-  border-radius: 5px;
-  text-align: center;
-  min-width: 120px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-
-  a {
-    color: #ffffff;
+  .pageButton {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 120px;
+    height: 120px;
+    background-color: #2a7b9b; // Tile background color
+    color: #fff;
+    text-align: center;
+    border-radius: 8px;
     text-decoration: none;
-  }
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
 
-  &:hover {
-    background-color: #005a9e;
+    &:hover {
+      background-color: #1e5d75;
+      transform: translateY(-4px);
+      box-shadow: 0 8px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .icon {
+      font-size: 30px;
+      margin-bottom: 8px;
+    }
+
+    .title {
+      font-size: 14px;
+      font-weight: bold;
+      line-height: 1.2;
+    }
   }
 }
-

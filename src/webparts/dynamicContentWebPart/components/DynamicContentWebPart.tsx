@@ -216,32 +216,34 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
     }
 
     public render(): React.ReactElement<IDynamicContentWebPartProps> {
-        const {pages} = this.state;
+        const { pages } = this.state;
 
         return (
             <section className={styles.dynamicContentWebPart}>
-                <div>
-                    <h2>Popular Pages</h2>
-                    {pages.length > 0 ? (
-                        <ul>
-                            {pages.map((page) => (
-                                <li key={page.id}>
-                                    <a
-                                        href={page.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        onClick={() => this.handlePageClick(page.id, this.props.userRole)}
-                                    >
-                                        {page.title} ({page.clicks} clicks)
-                                    </a>
-                                </li>
-                            ))}
-                        </ul>
-                    ) : (
-                        <p>No pages available to display.</p>
-                    )}
-                </div>
+                {pages.length > 0 ? (
+                    pages.map((page) => (
+                        <a
+                            key={page.id}
+                            href={page.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => this.handlePageClick(page.id, this.props.userRole)}
+                            className={styles.pageButton}
+                        >
+                            <div className={styles.icon}>
+                                {/* Add icon dynamically based on the page or use default */}
+                                <i className="ms-Icon ms-Icon--Globe" aria-hidden="true"></i>
+                            </div>
+                            <div className={styles.title}>
+                                {page.title} <br /> ({page.clicks} clicks)
+                            </div>
+                        </a>
+                    ))
+                ) : (
+                    <p>No pages available to display.</p>
+                )}
             </section>
         );
     }
+
 }
