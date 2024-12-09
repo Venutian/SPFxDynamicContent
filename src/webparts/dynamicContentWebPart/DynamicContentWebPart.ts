@@ -31,7 +31,7 @@ export default class DynamicContentWebPart extends BaseClientSideWebPart<IDynami
                 sp: this.sp,
                 context: this.context,
                 listName: this.properties.listName,
-                demoMode: false, // Enable demo mode
+                demoMode: false, // Enable demo mode              
             }
         );
 
