@@ -40,7 +40,8 @@
     "ajv": "^6.12.5",
     "eslint": "8.57.0",
     "eslint-plugin-react-hooks": "4.3.0",
-    "gulp": "4.0.2",
+    "gulp": "^4.0.2",
+    "gulp-cli": "^3.0.0",
     "typescript": "4.7.4"
   }
 }

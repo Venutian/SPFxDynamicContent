@@ -1,8 +1,8 @@
 import * as React from 'react';
-import {IDynamicContentWebPartProps} from './IDynamicContentWebPartProps';
+import { IDynamicContentWebPartProps } from './IDynamicContentWebPartProps';
 import styles from './DynamicContentWebPart.module.scss';
-import {ILinkItem} from './IDynamicContentWebPartProps';
-import {Web} from "@pnp/sp/webs";
+import { ILinkItem } from './IDynamicContentWebPartProps';
+import { Web } from "@pnp/sp/webs";
 import "@pnp/sp/lists";
 import "@pnp/sp/items";
 
@@ -21,14 +21,18 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
     }
 
     public async componentDidMount(): Promise<void> {
-        await this.ensureListExists();
-        await this.cleanUpOldData();
-        await this.loadPages();
-
-        this.updateInterval = setInterval(async () => {
+        try {
+            await this.ensureListExists();
             await this.cleanUpOldData();
             await this.loadPages();
-        }, 24 * 60 * 60 * 1000); // Every 24 hours
+
+            this.updateInterval = setInterval(async () => {
+                await this.cleanUpOldData();
+                await this.loadPages();
+            }, 24 * 60 * 60 * 1000); // Every 24 hours
+        } catch (error) {
+            console.error("Error during component mount:", error);
+        }
     }
 
     public componentWillUnmount(): void {
@@ -49,18 +53,30 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
         const web = Web(webUrl);
 
         try {
-            await web.lists.getByTitle(this.props.listName || "DailyClickCounts").select("Title")();
-            console.log("List exists.");
-        } catch (error) {
-            console.log("List does not exist. Creating...");
-            try {
-                await web.lists.add(this.props.listName || "DailyClickCounts", "Stores click counts for pages", 100);
-                console.log("List created.");
-            } catch (createError) {
-                console.error("Error creating list:", createError);
+            console.log(`Checking if the list "${this.props.listName || "DailyClickCounts"}" exists...`);
+            const list = await web.lists.getByTitle(this.props.listName || "DailyClickCounts").select("Title")();
+            console.log(`List "${list.Title}" exists.`);
+        } catch (error: any) {
+            if (error?.isHttpRequestError && error.status === 404) {
+                console.warn(`List "${this.props.listName || "DailyClickCounts"}" does not exist. Creating...`);
+                try {
+                    await web.lists.add(
+                        this.props.listName || "DailyClickCounts",
+                        "Stores click counts for pages",
+                        100 // Generic List Template
+                    );
+                    console.log(`List "${this.props.listName || "DailyClickCounts"}" created successfully.`);
+                } catch (creationError: any) {
+                    console.error("Error creating the list:", creationError);
+                    throw new Error("Failed to create the list.");
+                }
+            } else {
+                console.error("Error checking list existence:", error);
+                throw new Error("Failed to ensure list exists.");
             }
         }
     }
+
 
     private async cleanUpOldData(): Promise<void> {
         const webUrl = this.props.context.pageContext.web.absoluteUrl;
@@ -159,13 +175,14 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
             const web = Web(webUrl);
 
             try {
-                const items = await web.lists
-                    .getByTitle(this.props.listName || "DailyClickCounts")
+                console.log(`Fetching items from the list "${this.props.listName || "DailyClickCounts"}"...`);
+                const items = await web.lists.getByTitle(this.props.listName || "DailyClickCounts")
                     .items.select("Id", "Title", "URL", "ClickCounts", "Roles")();
+                console.log("Fetched items:", items);
 
                 const pages = items.map((item) => {
                     const clickCounts = JSON.parse(item.ClickCounts || "{}");
-                    const totalClicks = (clickCounts[userRole] || []).length;
+                    const totalClicks = (clickCounts[this.props.userRole] || []).length;
 
                     return {
                         id: item.Id,
@@ -176,7 +193,7 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
                     };
                 }) as ILinkItem[];
 
-                const roleFilteredPages = pages.filter((page) => page.roles.includes(userRole));
+                const roleFilteredPages = pages.filter((page) => page.roles.includes(this.props.userRole || "Admin"));
                 roleFilteredPages.sort((a, b) => b.clicks - a.clicks);
 
                 this.setState({ pages: roleFilteredPages });
@@ -231,7 +248,6 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
                             className={styles.pageButton}
                         >
                             <div className={styles.icon}>
-                                {/* Add icon dynamically based on the page or use default */}
                                 <i className="ms-Icon ms-Icon--Globe" aria-hidden="true"></i>
                             </div>
                             <div className={styles.title}>
@@ -242,9 +258,7 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
                 ) : (
                     <p>No pages available to display.</p>
                 )}
-
             </section>
         );
     }
-
 }
