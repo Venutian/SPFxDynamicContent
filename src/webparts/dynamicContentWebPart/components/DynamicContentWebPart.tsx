@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { IDynamicContentWebPartProps } from './IDynamicContentWebPartProps';
+import {IDynamicContentWebPartProps} from './IDynamicContentWebPartProps';
 import styles from './DynamicContentWebPart.module.scss';
-import { ILinkItem } from './IDynamicContentWebPartProps';
-import { Web } from "@pnp/sp/webs";
+import {ILinkItem} from './IDynamicContentWebPartProps';
+import {Web} from "@pnp/sp/webs";
 import "@pnp/sp/lists";
 import "@pnp/sp/items";
 
@@ -21,18 +21,14 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
     }
 
     public async componentDidMount(): Promise<void> {
-        try {
-            await this.ensureListExists();
+        await this.ensureListExists();
+        await this.cleanUpOldData();
+        await this.loadPages();
+
+        this.updateInterval = setInterval(async () => {
             await this.cleanUpOldData();
             await this.loadPages();
-
-            this.updateInterval = setInterval(async () => {
-                await this.cleanUpOldData();
-                await this.loadPages();
-            }, 24 * 60 * 60 * 1000); // Every 24 hours
-        } catch (error) {
-            console.error("Error during component mount:", error);
-        }
+        }, 24 * 60 * 60 * 1000); // Every 24 hours
     }
 
     public componentWillUnmount(): void {
@@ -53,30 +49,25 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
         const web = Web(webUrl);
 
         try {
-            console.log(`Checking if the list "${this.props.listName || "DailyClickCounts"}" exists...`);
+            console.log("Checking if list exists:", this.props.listName || "DailyClickCounts");
             const list = await web.lists.getByTitle(this.props.listName || "DailyClickCounts").select("Title")();
-            console.log(`List "${list.Title}" exists.`);
-        } catch (error: any) {
-            if (error?.isHttpRequestError && error.status === 404) {
-                console.warn(`List "${this.props.listName || "DailyClickCounts"}" does not exist. Creating...`);
-                try {
-                    await web.lists.add(
-                        this.props.listName || "DailyClickCounts",
-                        "Stores click counts for pages",
-                        100 // Generic List Template
-                    );
-                    console.log(`List "${this.props.listName || "DailyClickCounts"}" created successfully.`);
-                } catch (creationError: any) {
-                    console.error("Error creating the list:", creationError);
-                    throw new Error("Failed to create the list.");
-                }
-            } else {
-                console.error("Error checking list existence:", error);
-                throw new Error("Failed to ensure list exists.");
+            console.log("List exists:", list);
+        } catch (error) {
+            console.error("Error checking list existence:", error);
+            console.log("List does not exist. Creating...");
+            try {
+                const newList = await web.lists.add(
+                    this.props.listName || "DailyClickCounts", // List title
+                    "Stores click counts for pages", // List description
+                    100, // Template type (100 for custom list)
+                    false // Enable content types (set to false)
+                );
+                console.log("List created:", newList);
+            } catch (createError) {
+                console.error("Error creating list:", createError);
             }
         }
     }
-
 
     private async cleanUpOldData(): Promise<void> {
         const webUrl = this.props.context.pageContext.web.absoluteUrl;
@@ -112,6 +103,11 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
     private async loadPages(): Promise<void> {
         const isLocal = this.props.demoMode || !this.props.context.pageContext.web.absoluteUrl.includes("https");
         const userRole = this.props.userRole || "Admin"; // Default to a valid role for demo
+
+        if (!userRole) {
+            console.error("User role is missing.");
+            return;
+        }
 
         if (isLocal) {
             console.log("Using demo mode with mocked data...");
@@ -175,14 +171,13 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
             const web = Web(webUrl);
 
             try {
-                console.log(`Fetching items from the list "${this.props.listName || "DailyClickCounts"}"...`);
-                const items = await web.lists.getByTitle(this.props.listName || "DailyClickCounts")
+                const items = await web.lists
+                    .getByTitle(this.props.listName || "DailyClickCounts")
                     .items.select("Id", "Title", "URL", "ClickCounts", "Roles")();
-                console.log("Fetched items:", items);
 
                 const pages = items.map((item) => {
                     const clickCounts = JSON.parse(item.ClickCounts || "{}");
-                    const totalClicks = (clickCounts[this.props.userRole] || []).length;
+                    const totalClicks = (clickCounts[userRole] || []).length;
 
                     return {
                         id: item.Id,
@@ -193,7 +188,7 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
                     };
                 }) as ILinkItem[];
 
-                const roleFilteredPages = pages.filter((page) => page.roles.includes(this.props.userRole || "Admin"));
+                const roleFilteredPages = pages.filter((page) => page.roles.includes(userRole));
                 roleFilteredPages.sort((a, b) => b.clicks - a.clicks);
 
                 this.setState({ pages: roleFilteredPages });
@@ -219,14 +214,26 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
             if (!clickCounts[userRole]) {
                 clickCounts[userRole] = [];
             }
-            clickCounts[userRole].push({timestamp: currentTimestamp});
+            clickCounts[userRole].push({ timestamp: currentTimestamp });
 
             await web.lists.getByTitle(this.props.listName || "DailyClickCounts").items.getById(pageId).update({
                 ClickCounts: JSON.stringify(clickCounts)
             });
 
             console.log("Click count updated.");
-            await this.loadPages(); // Refresh the UI
+
+            // Update the state locally instead of reloading all pages
+            const updatedPages = this.state.pages.map(page => {
+                if (page.id === pageId) {
+                    return {
+                        ...page,
+                        clicks: page.clicks + 1,
+                    };
+                }
+                return page;
+            });
+
+            this.setState({ pages: updatedPages });
         } catch (error) {
             console.error("Error updating click count:", error);
         }
@@ -248,7 +255,8 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
                             className={styles.pageButton}
                         >
                             <div className={styles.icon}>
-                                <i className="ms-Icon ms-Icon--Globe" aria-hidden="true"></i>
+                                {/* Add icon dynamically based on the page or use default */}
+                                <i className="ms-Icon ms-Icon--Globe" aria-hidden="true"/>
                             </div>
                             <div className={styles.title}>
                                 {page.title} <br /> ({page.clicks} clicks)
@@ -258,7 +266,9 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
                 ) : (
                     <p>No pages available to display.</p>
                 )}
+
             </section>
         );
     }
+
 }

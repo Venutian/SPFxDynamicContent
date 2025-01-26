@@ -11,24 +11,14 @@ import DynamicContentComponent from './components/DynamicContentWebPart';
 import { IDynamicContentWebPartProps } from './components/IDynamicContentWebPartProps';
 import { getSP } from "../pnpjsConfig"; // PnP.js config import
 import { SPFI } from "@pnp/sp";
-import { Web } from "@pnp/sp/webs";
 
 export default class DynamicContentWebPart extends BaseClientSideWebPart<IDynamicContentWebPartProps> {
 
     private sp: SPFI;
 
-    public async onInit(): Promise<void> {
-        console.log("Initializing SPFx Web Part...");
+    public onInit(): Promise<void> {
+        // Initialize PnP.js
         this.sp = getSP(this.context);
-
-        try {
-            console.log("Checking connection to SharePoint...");
-            await Web(this.context.pageContext.web.absoluteUrl).lists.select("Title")();
-            console.log("Connection to SharePoint established.");
-        } catch (error) {
-            console.error("Error connecting to SharePoint:", error);
-        }
-
         return super.onInit();
     }
 
@@ -41,14 +31,16 @@ export default class DynamicContentWebPart extends BaseClientSideWebPart<IDynami
                 sp: this.sp,
                 context: this.context,
                 listName: this.properties.listName,
-                demoMode: false, // Disable demo mode for live testing
+                demoMode: this.properties.demoMode || false, // Pass demoMode from properties
             }
         );
 
         ReactDom.render(element, this.domElement);
     }
 
+
     public onDispose(): void {
+        // Unmount React component to avoid memory leaks
         ReactDom.unmountComponentAtNode(this.domElement);
     }
 
