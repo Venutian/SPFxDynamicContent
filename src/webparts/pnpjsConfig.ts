@@ -1,21 +1,17 @@
 import { SPFI, spfi } from "@pnp/sp";
 import { SPFx } from "@pnp/sp/behaviors/spfx";
-import { WebPartContext } from '@microsoft/sp-webpart-base';
+import { WebPartContext } from "@microsoft/sp-webpart-base";
 
-let sp: SPFI;
+let _sp: SPFI | null = null;
 
-export const getSP = (context: WebPartContext): SPFI => {
-    if (!sp) {
-        if (context) {
-            try {
-                sp = spfi().using(SPFx(context)); // Bind SPFx context
-                console.log("PnP.js initialized successfully.");
-            } catch (error) {
-                console.error("Error initializing PnP.js:", error);
-            }
-        } else {
-            console.error("SPFx context is missing or invalid.");
+export const getSP = (context?: WebPartContext): SPFI => {
+    if (!_sp && context) {
+        try {
+            _sp = spfi().using(SPFx(context));
+            console.log("PnP.js initialized successfully.");
+        } catch (error) {
+            console.error("Error initializing PnP.js:", error);
         }
     }
-    return sp;
+    return _sp!;
 };

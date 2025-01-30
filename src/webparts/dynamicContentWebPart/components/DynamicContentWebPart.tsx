@@ -5,6 +5,7 @@ import { ILinkItem } from './IDynamicContentWebPartProps';
 import "@pnp/sp/lists";
 import "@pnp/sp/items";
 import "@pnp/sp/webs/index";
+import "@pnp/sp/fields/list";
 
 interface IDynamicContentWebPartState {
     pages: ILinkItem[];
@@ -49,20 +50,16 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
 
         try {
             console.log("Checking if list exists:", this.props.listName || "DailyClickCounts");
-
-            // Ensure the request is properly awaited
             const list = await sp.web.lists.getByTitle(this.props.listName || "DailyClickCounts").select("Title")();
             console.log("List exists:", list);
+
+            // Ensure the required columns exist
+            await this.ensureListColumnsExist();
+
+            // Insert one sample data item if the list is empty
+            await this.insertSampleDataIfEmpty();
         } catch (error) {
             console.error("Error checking list existence:", error);
-
-            // Log the full error for debugging
-            if (error instanceof Error) {
-                console.error("Error details:", {
-                    message: error.message,
-                    stack: error.stack,
-                });
-            }
 
             console.log("List does not exist. Creating...");
             try {
@@ -73,10 +70,92 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
                     false // Enable content types (set to false)
                 );
                 console.log("List created:", newList);
+
+                // Add required columns after list creation
+                await this.ensureListColumnsExist();
+
+                // Insert one sample data item
+                await this.insertSampleData();
             } catch (createError) {
                 console.error("Error creating list:", createError);
             }
         }
+    }
+
+    private async ensureListColumnsExist(): Promise<void> {
+        const sp = this.props.sp;
+        const listTitle = this.props.listName || "DailyClickCounts";
+        const list = sp.web.lists.getByTitle(listTitle);
+
+        // Ensure "URL" column exists
+        try {
+            await list.fields.getByTitle("URL")();
+            console.log("URL column already exists.");
+        } catch (error) {
+            console.log("URL column does not exist. Creating...", error);
+            await list.fields.addText("URL", {
+                Group: "Custom Columns",
+                Description: "Page URL",
+            });
+            console.log("URL column created.");
+        }
+
+        // Ensure "ClickCounts" column exists
+        try {
+            await list.fields.getByTitle("ClickCounts")();
+            console.log("ClickCounts column already exists.");
+        } catch (error) {
+            console.log("ClickCounts column does not exist. Creating...", error);
+            await list.fields.addMultilineText("ClickCounts", {
+                Group: "Custom Columns",
+                Description: "Stores click counts in JSON format",
+            });
+            console.log("ClickCounts column created.");
+        }
+
+        // Ensure "Roles" column exists
+        try {
+            await list.fields.getByTitle("Roles")();
+            console.log("Roles column already exists.");
+        } catch (error) {
+            console.log("Roles column does not exist. Creating...", error);
+            await list.fields.addText("Roles", {
+                Group: "Custom Columns",
+                Description: "Comma-separated roles",
+            });
+            console.log("Roles column created.");
+        }
+    }
+
+    private async insertSampleDataIfEmpty(): Promise<void> {
+        const sp = this.props.sp;
+        const listTitle = this.props.listName || "DailyClickCounts";
+
+        // Check if the list is empty
+        const items = await sp.web.lists.getByTitle(listTitle).items.select("Id")();
+        if (items.length === 0) {
+            console.log("List is empty. Inserting sample data...");
+            await this.insertSampleData();
+        }
+    }
+
+    private async insertSampleData(): Promise<void> {
+        const sp = this.props.sp;
+        const listTitle = this.props.listName || "DailyClickCounts";
+
+        // Sample data
+        const sampleItem = {
+            Title: "Admin Dashboard",
+            URL: "/sites/admin",
+            ClickCounts: JSON.stringify({
+                Admin: [{ timestamp: new Date().toISOString() }],
+            }),
+            Roles: "Admin,User",
+        };
+
+        // Add the sample item to the list
+        await sp.web.lists.getByTitle(listTitle).items.add(sampleItem);
+        console.log("Sample data inserted.");
     }
 
     private async cleanUpOldData(): Promise<void> {

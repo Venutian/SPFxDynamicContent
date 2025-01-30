@@ -17,21 +17,21 @@ export default class DynamicContentWebPart extends BaseClientSideWebPart<IDynami
     private sp: SPFI;
 
     public onInit(): Promise<void> {
-        // Initialize PnP.js
         this.sp = getSP(this.context);
+        console.log("onInit: sp =>", this.sp); // <--- debug log
         return super.onInit();
     }
+
 
     public render(): void {
         const element: React.ReactElement<IDynamicContentWebPartProps> = React.createElement(
             DynamicContentComponent,
             {
                 description: this.properties.description,
-                userRole: this.properties.userRole || "Admin", // Set a default role for demo
+                userRole: this.properties.userRole,
                 sp: this.sp,
                 context: this.context,
                 listName: this.properties.listName,
-                demoMode: this.properties.demoMode || false, // Pass demoMode from properties
             }
         );
 
