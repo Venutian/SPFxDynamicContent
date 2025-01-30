@@ -1,10 +1,10 @@
 import * as React from 'react';
-import {IDynamicContentWebPartProps} from './IDynamicContentWebPartProps';
+import { IDynamicContentWebPartProps } from './IDynamicContentWebPartProps';
 import styles from './DynamicContentWebPart.module.scss';
-import {ILinkItem} from './IDynamicContentWebPartProps';
-import {Web} from "@pnp/sp/webs";
+import { ILinkItem } from './IDynamicContentWebPartProps';
 import "@pnp/sp/lists";
 import "@pnp/sp/items";
+import "@pnp/sp/webs/index";
 
 interface IDynamicContentWebPartState {
     pages: ILinkItem[];
@@ -45,18 +45,28 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
             return;
         }
 
-        const webUrl = this.props.context.pageContext.web.absoluteUrl;
-        const web = Web(webUrl);
+        const sp = this.props.sp; // Use the initialized SPFI instance
 
         try {
             console.log("Checking if list exists:", this.props.listName || "DailyClickCounts");
-            const list = await web.lists.getByTitle(this.props.listName || "DailyClickCounts").select("Title")();
+
+            // Ensure the request is properly awaited
+            const list = await sp.web.lists.getByTitle(this.props.listName || "DailyClickCounts").select("Title")();
             console.log("List exists:", list);
         } catch (error) {
             console.error("Error checking list existence:", error);
+
+            // Log the full error for debugging
+            if (error instanceof Error) {
+                console.error("Error details:", {
+                    message: error.message,
+                    stack: error.stack,
+                });
+            }
+
             console.log("List does not exist. Creating...");
             try {
-                const newList = await web.lists.add(
+                const newList = await sp.web.lists.add(
                     this.props.listName || "DailyClickCounts", // List title
                     "Stores click counts for pages", // List description
                     100, // Template type (100 for custom list)
@@ -70,14 +80,13 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
     }
 
     private async cleanUpOldData(): Promise<void> {
-        const webUrl = this.props.context.pageContext.web.absoluteUrl;
-        const web = Web(webUrl);
+        const sp = this.props.sp; // Use the initialized SPFI instance
 
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
         try {
-            const items = await web.lists
+            const items = await sp.web.lists
                 .getByTitle(this.props.listName || "DailyClickCounts")
                 .items.select("Id", "ClickCounts")();
 
@@ -90,7 +99,7 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
                         );
                     }
                 }
-                await web.lists.getByTitle(this.props.listName || "DailyClickCounts").items.getById(item.Id).update({
+                await sp.web.lists.getByTitle(this.props.listName || "DailyClickCounts").items.getById(item.Id).update({
                     ClickCounts: JSON.stringify(clickCounts)
                 });
             }
@@ -167,11 +176,10 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
             });
         } else {
             console.log("Fetching live SharePoint data...");
-            const webUrl = this.props.context.pageContext.web.absoluteUrl;
-            const web = Web(webUrl);
+            const sp = this.props.sp; // Use the initialized SPFI instance
 
             try {
-                const items = await web.lists
+                const items = await sp.web.lists
                     .getByTitle(this.props.listName || "DailyClickCounts")
                     .items.select("Id", "Title", "URL", "ClickCounts", "Roles")();
 
@@ -199,11 +207,10 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
     }
 
     private async handlePageClick(pageId: number, userRole: string): Promise<void> {
-        const webUrl = this.props.context.pageContext.web.absoluteUrl;
-        const web = Web(webUrl);
+        const sp = this.props.sp; // Use the initialized SPFI instance
 
         try {
-            const item = await web.lists
+            const item = await sp.web.lists
                 .getByTitle(this.props.listName || "DailyClickCounts")
                 .items.getById(pageId)
                 .select("ClickCounts")();
@@ -216,7 +223,7 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
             }
             clickCounts[userRole].push({ timestamp: currentTimestamp });
 
-            await web.lists.getByTitle(this.props.listName || "DailyClickCounts").items.getById(pageId).update({
+            await sp.web.lists.getByTitle(this.props.listName || "DailyClickCounts").items.getById(pageId).update({
                 ClickCounts: JSON.stringify(clickCounts)
             });
 
@@ -256,7 +263,7 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
                         >
                             <div className={styles.icon}>
                                 {/* Add icon dynamically based on the page or use default */}
-                                <i className="ms-Icon ms-Icon--Globe" aria-hidden="true"/>
+                                <i className="ms-Icon ms-Icon--Globe" aria-hidden="true" />
                             </div>
                             <div className={styles.title}>
                                 {page.title} <br /> ({page.clicks} clicks)
@@ -266,9 +273,7 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
                 ) : (
                     <p>No pages available to display.</p>
                 )}
-
             </section>
         );
     }
-
 }

@@ -1,6 +1,6 @@
 import { SPFI, spfi } from "@pnp/sp";
-import { SPFx } from "@pnp/sp/behaviors/spfx"; // Correct path for SPFx behavior in v4
-import { WebPartContext } from '@microsoft/sp-webpart-base'; // Import the correct type
+import { SPFx } from "@pnp/sp/behaviors/spfx";
+import { WebPartContext } from '@microsoft/sp-webpart-base';
 
 let sp: SPFI;
 
