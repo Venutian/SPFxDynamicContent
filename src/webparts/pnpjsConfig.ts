@@ -2,7 +2,7 @@ import { SPFI, spfi } from "@pnp/sp";
 import { SPFx } from "@pnp/sp/behaviors/spfx";
 import { WebPartContext } from "@microsoft/sp-webpart-base";
 
-let _sp: SPFI | null = null;
+let _sp: SPFI | undefined = undefined;
 
 export const getSP = (context?: WebPartContext): SPFI => {
     if (!_sp && context) {

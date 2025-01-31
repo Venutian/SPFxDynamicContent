@@ -11,14 +11,15 @@ interface IDynamicContentWebPartState {
     pages: ILinkItem[];
 }
 
-export default class DynamicContentComponent extends React.Component<IDynamicContentWebPartProps, IDynamicContentWebPartState> {
+export default class DynamicContentComponent extends React.Component<
+    IDynamicContentWebPartProps,
+    IDynamicContentWebPartState
+> {
     private updateInterval: NodeJS.Timeout | null = null;
 
     constructor(props: IDynamicContentWebPartProps) {
         super(props);
-        this.state = {
-            pages: []
-        };
+        this.state = { pages: [] };
     }
 
     public async componentDidMount(): Promise<void> {
@@ -39,42 +40,31 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
     }
 
     private async ensureListExists(): Promise<void> {
-        const isLocal = this.props.demoMode || !this.props.context.pageContext.web.absoluteUrl.includes("https");
-
-        if (isLocal) {
-            console.log("Running in demo mode. Skipping list existence check.");
-            return;
-        }
-
-        const sp = this.props.sp; // Use the initialized SPFI instance
+        const sp = this.props.sp;
 
         try {
             console.log("Checking if list exists:", this.props.listName || "DailyClickCounts");
-            const list = await sp.web.lists.getByTitle(this.props.listName || "DailyClickCounts").select("Title")();
+            const list = await sp.web.lists
+                .getByTitle(this.props.listName || "DailyClickCounts")
+                .select("Title")();
+
             console.log("List exists:", list);
-
-            // Ensure the required columns exist
             await this.ensureListColumnsExist();
-
-            // Insert one sample data item if the list is empty
             await this.insertSampleDataIfEmpty();
         } catch (error) {
             console.error("Error checking list existence:", error);
-
             console.log("List does not exist. Creating...");
+
             try {
                 const newList = await sp.web.lists.add(
-                    this.props.listName || "DailyClickCounts", // List title
-                    "Stores click counts for pages", // List description
-                    100, // Template type (100 for custom list)
-                    false // Enable content types (set to false)
+                    this.props.listName || "DailyClickCounts",
+                    "Stores click counts for pages",
+                    100, // Template type (100 = custom list)
+                    false // Enable content types (false)
                 );
                 console.log("List created:", newList);
 
-                // Add required columns after list creation
                 await this.ensureListColumnsExist();
-
-                // Insert one sample data item
                 await this.insertSampleData();
             } catch (createError) {
                 console.error("Error creating list:", createError);
@@ -87,7 +77,7 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
         const listTitle = this.props.listName || "DailyClickCounts";
         const list = sp.web.lists.getByTitle(listTitle);
 
-        // Ensure "URL" column exists
+        // URL column
         try {
             await list.fields.getByTitle("URL")();
             console.log("URL column already exists.");
@@ -100,7 +90,7 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
             console.log("URL column created.");
         }
 
-        // Ensure "ClickCounts" column exists
+        // ClickCounts column (multiline for JSON data)
         try {
             await list.fields.getByTitle("ClickCounts")();
             console.log("ClickCounts column already exists.");
@@ -113,7 +103,7 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
             console.log("ClickCounts column created.");
         }
 
-        // Ensure "Roles" column exists
+        // Roles column
         try {
             await list.fields.getByTitle("Roles")();
             console.log("Roles column already exists.");
@@ -131,7 +121,6 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
         const sp = this.props.sp;
         const listTitle = this.props.listName || "DailyClickCounts";
 
-        // Check if the list is empty
         const items = await sp.web.lists.getByTitle(listTitle).items.select("Id")();
         if (items.length === 0) {
             console.log("List is empty. Inserting sample data...");
@@ -143,7 +132,6 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
         const sp = this.props.sp;
         const listTitle = this.props.listName || "DailyClickCounts";
 
-        // Sample data
         const sampleItem = {
             Title: "Admin Dashboard",
             URL: "/sites/admin",
@@ -153,33 +141,33 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
             Roles: "Admin,User",
         };
 
-        // Add the sample item to the list
         await sp.web.lists.getByTitle(listTitle).items.add(sampleItem);
         console.log("Sample data inserted.");
     }
 
     private async cleanUpOldData(): Promise<void> {
-        const sp = this.props.sp; // Use the initialized SPFI instance
-
+        const sp = this.props.sp;
+        const listName = this.props.listName || "DailyClickCounts";
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
         try {
             const items = await sp.web.lists
-                .getByTitle(this.props.listName || "DailyClickCounts")
+                .getByTitle(listName)
                 .items.select("Id", "ClickCounts")();
 
             for (const item of items) {
                 const clickCounts = JSON.parse(item.ClickCounts || "{}");
                 for (const role in clickCounts) {
                     if (Object.prototype.hasOwnProperty.call(clickCounts, role)) {
-                        clickCounts[role] = clickCounts[role].filter((entry: { timestamp: string }) =>
-                            new Date(entry.timestamp) >= sevenDaysAgo
+                        clickCounts[role] = clickCounts[role].filter(
+                            (entry: { timestamp: string }) =>
+                                new Date(entry.timestamp) >= sevenDaysAgo
                         );
                     }
                 }
-                await sp.web.lists.getByTitle(this.props.listName || "DailyClickCounts").items.getById(item.Id).update({
-                    ClickCounts: JSON.stringify(clickCounts)
+                await sp.web.lists.getByTitle(listName).items.getById(item.Id).update({
+                    ClickCounts: JSON.stringify(clickCounts),
                 });
             }
             console.log("Old data cleaned up.");
@@ -189,55 +177,25 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
     }
 
     private async loadPages(): Promise<void> {
-        const isLocal = this.props.demoMode || !this.props.context.pageContext.web.absoluteUrl.includes("https");
-        const userRole = this.props.userRole || "Admin"; // Default to a valid role for demo
+        const sp = this.props.sp;
+        const listName = this.props.listName || "DailyClickCounts";
+        const userRole = this.props.userRole || "Admin";
 
         if (!userRole) {
             console.error("User role is missing.");
             return;
         }
 
-        if (isLocal) {
-            console.log("Using demo mode with mocked data...");
-            const mockedItems = [
-                {
-                    Id: 1,
-                    Title: "Admin Dashboard",
-                    URL: "/sites/admin",
-                    ClickCounts: JSON.stringify({
-                        Admin: [{ timestamp: "2024-11-15T10:00:00Z" }],
-                    }),
-                    Roles: "Admin,User",
-                },
-                {
-                    Id: 2,
-                    Title: "User Profile",
-                    URL: "/sites/userprofile",
-                    ClickCounts: JSON.stringify({
-                        User: [{ timestamp: "2024-11-15T11:00:00Z" }],
-                    }),
-                    Roles: "User",
-                },
-                {
-                    Id: 3,
-                    Title: "Reports",
-                    URL: "/sites/reports",
-                    ClickCounts: JSON.stringify({
-                        Admin: [{ timestamp: "2024-11-15T12:00:00Z" }],
-                        User: [{ timestamp: "2024-11-15T12:30:00Z" }],
-                    }),
-                    Roles: "Admin,User",
-                },
-            ];
+        console.log("Fetching live SharePoint data...");
 
-            // Debug logging for mocked items and userRole
-            console.log("Mocked Items:", mockedItems);
-            console.log("User Role:", userRole);
+        try {
+            const items = await sp.web.lists
+                .getByTitle(listName)
+                .items.select("Id", "Title", "URL", "ClickCounts", "Roles")();
 
-            const pages = mockedItems.map((item) => {
+            const pages = items.map((item) => {
                 const clickCounts = JSON.parse(item.ClickCounts || "{}");
                 const totalClicks = (clickCounts[userRole] || []).length;
-
                 return {
                     id: item.Id,
                     title: item.Title,
@@ -247,74 +205,41 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
                 };
             }) as ILinkItem[];
 
-            const roleFilteredPages = pages.filter((page) => page.roles.includes(userRole));
+            const roleFilteredPages = pages.filter((page) =>
+                page.roles.includes(userRole)
+            );
             roleFilteredPages.sort((a, b) => b.clicks - a.clicks);
 
-            this.setState({ pages: roleFilteredPages }, () => {
-                console.log("Filtered Pages:", this.state.pages); // Debug filtered pages
-            });
-        } else {
-            console.log("Fetching live SharePoint data...");
-            const sp = this.props.sp; // Use the initialized SPFI instance
-
-            try {
-                const items = await sp.web.lists
-                    .getByTitle(this.props.listName || "DailyClickCounts")
-                    .items.select("Id", "Title", "URL", "ClickCounts", "Roles")();
-
-                const pages = items.map((item) => {
-                    const clickCounts = JSON.parse(item.ClickCounts || "{}");
-                    const totalClicks = (clickCounts[userRole] || []).length;
-
-                    return {
-                        id: item.Id,
-                        title: item.Title,
-                        url: item.URL,
-                        clicks: totalClicks,
-                        roles: item.Roles.split(","),
-                    };
-                }) as ILinkItem[];
-
-                const roleFilteredPages = pages.filter((page) => page.roles.includes(userRole));
-                roleFilteredPages.sort((a, b) => b.clicks - a.clicks);
-
-                this.setState({ pages: roleFilteredPages });
-            } catch (error) {
-                console.error("Error fetching live data:", error);
-            }
+            this.setState({ pages: roleFilteredPages });
+        } catch (error) {
+            console.error("Error fetching live data:", error);
         }
     }
 
     private async handlePageClick(pageId: number, userRole: string): Promise<void> {
-        const sp = this.props.sp; // Use the initialized SPFI instance
+        const sp = this.props.sp;
+        const listName = this.props.listName || "DailyClickCounts";
 
         try {
             const item = await sp.web.lists
-                .getByTitle(this.props.listName || "DailyClickCounts")
+                .getByTitle(listName)
                 .items.getById(pageId)
                 .select("ClickCounts")();
 
             const clickCounts = JSON.parse(item.ClickCounts || "{}");
-
-            const currentTimestamp = new Date().toISOString();
             if (!clickCounts[userRole]) {
                 clickCounts[userRole] = [];
             }
-            clickCounts[userRole].push({ timestamp: currentTimestamp });
 
-            await sp.web.lists.getByTitle(this.props.listName || "DailyClickCounts").items.getById(pageId).update({
-                ClickCounts: JSON.stringify(clickCounts)
+            clickCounts[userRole].push({ timestamp: new Date().toISOString() });
+            await sp.web.lists.getByTitle(listName).items.getById(pageId).update({
+                ClickCounts: JSON.stringify(clickCounts),
             });
-
             console.log("Click count updated.");
 
-            // Update the state locally instead of reloading all pages
-            const updatedPages = this.state.pages.map(page => {
+            const updatedPages = this.state.pages.map((page) => {
                 if (page.id === pageId) {
-                    return {
-                        ...page,
-                        clicks: page.clicks + 1,
-                    };
+                    return { ...page, clicks: page.clicks + 1 };
                 }
                 return page;
             });
@@ -341,11 +266,11 @@ export default class DynamicContentComponent extends React.Component<IDynamicCon
                             className={styles.pageButton}
                         >
                             <div className={styles.icon}>
-                                {/* Add icon dynamically based on the page or use default */}
                                 <i className="ms-Icon ms-Icon--Globe" aria-hidden="true" />
                             </div>
                             <div className={styles.title}>
-                                {page.title} <br /> ({page.clicks} clicks)
+                                {page.title}
+                                <br /> ({page.clicks} clicks)
                             </div>
                         </a>
                     ))
