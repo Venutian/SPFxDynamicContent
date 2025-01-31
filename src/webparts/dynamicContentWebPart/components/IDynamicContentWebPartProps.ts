@@ -22,4 +22,5 @@ export interface ILinkItem {
   url: string;    // URL of the page or resource
   clicks: number; // Total clicks for the role
   roles: string[]; // Roles associated with the page
+  icon: string;   // Icon for the button
 }

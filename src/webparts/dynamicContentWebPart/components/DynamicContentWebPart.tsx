@@ -51,6 +51,7 @@ export default class DynamicContentComponent extends React.Component<
             console.log("List exists:", list);
             await this.ensureListColumnsExist();
             await this.insertSampleDataIfEmpty();
+            await this.ensureOtherButtonExists(); // Ensure the "Other" button exists
         } catch (error) {
             console.error("Error checking list existence:", error);
             console.log("List does not exist. Creating...");
@@ -66,9 +67,33 @@ export default class DynamicContentComponent extends React.Component<
 
                 await this.ensureListColumnsExist();
                 await this.insertSampleData();
+                await this.ensureOtherButtonExists(); // Ensure the "Other" button exists
             } catch (createError) {
                 console.error("Error creating list:", createError);
             }
+        }
+    }
+
+    private async ensureOtherButtonExists(): Promise<void> {
+        const sp = this.props.sp;
+        const listTitle = this.props.listName || "DailyClickCounts";
+
+        // Check if the "Other" entry already exists
+        const items = await sp.web.lists.getByTitle(listTitle).items.filter(`Title eq 'Other'`)();
+        if (items.length === 0) {
+            const otherItem = {
+                Title: "Other",
+                URL: "#", // Default URL (can be edited by users)
+                ClickCounts: JSON.stringify({
+                    Admin: [], // Initialize with empty click counts
+                    User: [],
+                }),
+                Roles: "Admin,User", // Visible to all roles
+                Icon: "ms-Icon--Globe", // Default icon
+            };
+
+            await sp.web.lists.getByTitle(listTitle).items.add(otherItem);
+            console.log("'Other' button entry created.");
         }
     }
 
@@ -114,6 +139,19 @@ export default class DynamicContentComponent extends React.Component<
                 Description: "Comma-separated roles",
             });
             console.log("Roles column created.");
+        }
+
+        // Icon column
+        try {
+            await list.fields.getByTitle("Icon")();
+            console.log("Icon column already exists.");
+        } catch (error) {
+            console.log("Icon column does not exist. Creating...", error);
+            await list.fields.addText("Icon", {
+                Group: "Custom Columns",
+                Description: "Icon class (e.g., ms-Icon--Globe)",
+            });
+            console.log("Icon column created.");
         }
     }
 
@@ -191,7 +229,7 @@ export default class DynamicContentComponent extends React.Component<
         try {
             const items = await sp.web.lists
                 .getByTitle(listName)
-                .items.select("Id", "Title", "URL", "ClickCounts", "Roles")();
+                .items.select("Id", "Title", "URL", "ClickCounts", "Roles", "Icon")();
 
             const pages = items.map((item) => {
                 const clickCounts = JSON.parse(item.ClickCounts || "{}");
@@ -202,6 +240,7 @@ export default class DynamicContentComponent extends React.Component<
                     url: item.URL,
                     clicks: totalClicks,
                     roles: item.Roles.split(","),
+                    icon: item.Icon, // Include the icon
                 };
             }) as ILinkItem[];
 
@@ -210,7 +249,14 @@ export default class DynamicContentComponent extends React.Component<
             );
             roleFilteredPages.sort((a, b) => b.clicks - a.clicks);
 
-            this.setState({ pages: roleFilteredPages });
+            // Ensure only 10 buttons are shown, with "Other" always as the last one
+            const displayedPages = roleFilteredPages.slice(0, 9);
+            const otherButton = roleFilteredPages.find((page) => page.title === "Other");
+            if (otherButton) {
+                displayedPages.push(otherButton);
+            }
+
+            this.setState({ pages: displayedPages });
         } catch (error) {
             console.error("Error fetching live data:", error);
         }
@@ -262,15 +308,14 @@ export default class DynamicContentComponent extends React.Component<
                             href={page.url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            onClick={() => this.handlePageClick(page.id, this.props.userRole)}
+                            onClick={() => page.id !== -1 && this.handlePageClick(page.id, this.props.userRole)}
                             className={styles.pageButton}
                         >
                             <div className={styles.icon}>
-                                <i className="ms-Icon ms-Icon--Globe" aria-hidden="true" />
+                                <i className={`ms-Icon ${page.icon}`} aria-hidden="true" />
                             </div>
                             <div className={styles.title}>
-                                {page.title}
-                                <br /> ({page.clicks} clicks)
+                                {page.title} {}
                             </div>
                         </a>
                     ))
