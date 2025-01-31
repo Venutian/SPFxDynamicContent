@@ -24,12 +24,11 @@ export default class DynamicContentWebPart extends BaseClientSideWebPart<IDynami
         const element: React.ReactElement<IDynamicContentWebPartProps> = React.createElement(
             DynamicContentComponent,
             {
-                description: this.properties.description,
+                description: "Dynamisk Sidor - Prioritera och spåra länkklick dynamiskt.",
                 userRole: this.properties.userRole,
                 sp: this.sp,
                 context: this.context,
                 listName: this.properties.listName,
-                // demoMode removed
             }
         );
 
@@ -44,15 +43,15 @@ export default class DynamicContentWebPart extends BaseClientSideWebPart<IDynami
         return {
             pages: [
                 {
-                    header: { description: 'Web Part Configuration' },
+                    header: { description: 'Dynamisk Sidor Konfiguration' },
                     groups: [
                         {
-                            groupName: 'Settings',
+                            groupName: 'Inställningar',
                             groupFields: [
                                 PropertyPaneTextField('listName', {
-                                    label: 'List Name',
-                                    description: 'Enter the name of the SharePoint list',
-                                    value: 'DailyClickCounts',
+                                    label: 'Listnamn',
+                                    description: 'Ange namnet på SharePoint-listan',
+                                    value: 'KlickPrioritet',
                                 }),
                             ],
                         },

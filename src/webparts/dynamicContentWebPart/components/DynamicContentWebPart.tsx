@@ -43,9 +43,9 @@ export default class DynamicContentComponent extends React.Component<
         const sp = this.props.sp;
 
         try {
-            console.log("Checking if list exists:", this.props.listName || "DailyClickCounts");
+            console.log("Checking if list exists:", this.props.listName || "KlickPrioritet");
             const list = await sp.web.lists
-                .getByTitle(this.props.listName || "DailyClickCounts")
+                .getByTitle(this.props.listName || "KlickPrioritet")
                 .select("Title")();
 
             console.log("List exists:", list);
@@ -58,7 +58,7 @@ export default class DynamicContentComponent extends React.Component<
 
             try {
                 const newList = await sp.web.lists.add(
-                    this.props.listName || "DailyClickCounts",
+                    this.props.listName || "KlickPrioritet",
                     "Stores click counts for pages",
                     100, // Template type (100 = custom list)
                     false // Enable content types (false)
@@ -76,7 +76,7 @@ export default class DynamicContentComponent extends React.Component<
 
     private async ensureOtherButtonExists(): Promise<void> {
         const sp = this.props.sp;
-        const listTitle = this.props.listName || "DailyClickCounts";
+        const listTitle = this.props.listName || "KlickPrioritet";
 
         // Check if the "Other" entry already exists
         const items = await sp.web.lists.getByTitle(listTitle).items.filter(`Title eq 'Other'`)();
@@ -99,7 +99,7 @@ export default class DynamicContentComponent extends React.Component<
 
     private async ensureListColumnsExist(): Promise<void> {
         const sp = this.props.sp;
-        const listTitle = this.props.listName || "DailyClickCounts";
+        const listTitle = this.props.listName || "KlickPrioritet";
         const list = sp.web.lists.getByTitle(listTitle);
 
         // URL column
@@ -124,6 +124,7 @@ export default class DynamicContentComponent extends React.Component<
             await list.fields.addMultilineText("ClickCounts", {
                 Group: "Custom Columns",
                 Description: "Stores click counts in JSON format",
+                RichText: false,
             });
             console.log("ClickCounts column created.");
         }
@@ -157,7 +158,7 @@ export default class DynamicContentComponent extends React.Component<
 
     private async insertSampleDataIfEmpty(): Promise<void> {
         const sp = this.props.sp;
-        const listTitle = this.props.listName || "DailyClickCounts";
+        const listTitle = this.props.listName || "KlickPrioritet";
 
         const items = await sp.web.lists.getByTitle(listTitle).items.select("Id")();
         if (items.length === 0) {
@@ -168,7 +169,7 @@ export default class DynamicContentComponent extends React.Component<
 
     private async insertSampleData(): Promise<void> {
         const sp = this.props.sp;
-        const listTitle = this.props.listName || "DailyClickCounts";
+        const listTitle = this.props.listName || "KlickPrioritet";
 
         const sampleItem = {
             Title: "Admin Dashboard",
@@ -185,7 +186,7 @@ export default class DynamicContentComponent extends React.Component<
 
     private async cleanUpOldData(): Promise<void> {
         const sp = this.props.sp;
-        const listName = this.props.listName || "DailyClickCounts";
+        const listName = this.props.listName || "KlickPrioritet";
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -216,7 +217,7 @@ export default class DynamicContentComponent extends React.Component<
 
     private async loadPages(): Promise<void> {
         const sp = this.props.sp;
-        const listName = this.props.listName || "DailyClickCounts";
+        const listName = this.props.listName || "KlickPrioritet";
         const userRole = this.props.userRole || "Admin";
 
         if (!userRole) {
@@ -264,7 +265,7 @@ export default class DynamicContentComponent extends React.Component<
 
     private async handlePageClick(pageId: number, userRole: string): Promise<void> {
         const sp = this.props.sp;
-        const listName = this.props.listName || "DailyClickCounts";
+        const listName = this.props.listName || "KlickPrioritet";
 
         try {
             const item = await sp.web.lists
