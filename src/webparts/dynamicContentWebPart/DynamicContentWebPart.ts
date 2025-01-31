@@ -1,23 +1,31 @@
-import * as React from 'react';
-import * as ReactDom from 'react-dom';
+import * as React from "react";
+import * as ReactDom from "react-dom";
 import {
     IPropertyPaneConfiguration,
-    PropertyPaneTextField,
-} from '@microsoft/sp-property-pane';
-import { BaseClientSideWebPart } from '@microsoft/sp-webpart-base';
+    PropertyPaneTextField
+} from "@microsoft/sp-property-pane";
+import { BaseClientSideWebPart } from "@microsoft/sp-webpart-base";
 
-import DynamicContentComponent from './components/DynamicContentWebPart';
-import { IDynamicContentWebPartProps } from './components/IDynamicContentWebPartProps';
-import { getSP } from '../pnpjsConfig';
-import { SPFI } from '@pnp/sp';
+// Import the React component & props
+import DynamicContentComponent from "./components/DynamicContentWebPart";
+import { IDynamicContentWebPartProps } from "./components/IDynamicContentWebPartProps";
+
+// Import our pnpjsConfig helper
+import { getSP } from "../pnpjsConfig";
+import { SPFI } from "@pnp/sp";
 
 export default class DynamicContentWebPart extends BaseClientSideWebPart<IDynamicContentWebPartProps> {
     private sp: SPFI;
 
-    public onInit(): Promise<void> {
+    // Called once before render
+    public async onInit(): Promise<void> {
+        await super.onInit();
+
+        // Initialize PnPjs with the real SharePoint context
         this.sp = getSP(this.context);
-        console.log('onInit: sp =>', this.sp);
-        return super.onInit();
+        console.log("onInit => SP object:", this.sp);
+
+        return;
     }
 
     public render(): void {
@@ -28,7 +36,7 @@ export default class DynamicContentWebPart extends BaseClientSideWebPart<IDynami
                 userRole: this.properties.userRole,
                 sp: this.sp,
                 context: this.context,
-                listName: this.properties.listName,
+                listName: this.properties.listName
             }
         );
 
@@ -43,21 +51,21 @@ export default class DynamicContentWebPart extends BaseClientSideWebPart<IDynami
         return {
             pages: [
                 {
-                    header: { description: 'Dynamisk Sidor Konfiguration' },
+                    header: { description: "Dynamisk Sidor Konfiguration" },
                     groups: [
                         {
-                            groupName: 'Inställningar',
+                            groupName: "Inställningar",
                             groupFields: [
-                                PropertyPaneTextField('listName', {
-                                    label: 'Listnamn',
-                                    description: 'Ange namnet på SharePoint-listan',
-                                    value: 'KlickPrioritet',
-                                }),
-                            ],
-                        },
-                    ],
-                },
-            ],
+                                PropertyPaneTextField("listName", {
+                                    label: "Listnamn",
+                                    description: "Ange namnet på SharePoint-listan",
+                                    value: "KlickPrioritet",
+                                })
+                            ]
+                        }
+                    ]
+                }
+            ]
         };
     }
 }

@@ -43,9 +43,9 @@ export default class DynamicContentComponent extends React.Component<
         const sp = this.props.sp;
 
         try {
-            console.log("Checking if list exists:", this.props.listName || "KlickPrioritet");
+            console.log("Checking if list exists:", this.props.listName);
             const list = await sp.web.lists
-                .getByTitle(this.props.listName || "KlickPrioritet")
+                .getByTitle(this.props.listName)
                 .select("Title")();
 
             console.log("List exists:", list);
@@ -79,7 +79,7 @@ export default class DynamicContentComponent extends React.Component<
         const listTitle = this.props.listName || "KlickPrioritet";
 
         // Check if the "Other" entry already exists
-        const items = await sp.web.lists.getByTitle(listTitle).items.filter(`Title eq 'Other'`)();
+        const items = await sp.web.lists.getByTitle(listTitle).items.filter(`Title eq 'Övriga System'`)();
         if (items.length === 0) {
             const otherItem = {
                 Title: "Other",

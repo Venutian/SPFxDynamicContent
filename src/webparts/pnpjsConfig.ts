@@ -1,17 +1,15 @@
-import { SPFI, spfi } from "@pnp/sp";
-import { SPFx } from "@pnp/sp/behaviors/spfx";
-import { WebPartContext } from "@microsoft/sp-webpart-base";
+import {spfi, SPFI} from "@pnp/sp";
+import {SPFx} from "@pnp/sp/behaviors/spfx";
+import {WebPartContext} from "@microsoft/sp-webpart-base";
 
-let _sp: SPFI | undefined = undefined;
+// Keep a global reference so we only init once
+let _sp: SPFI | undefined;
 
-export const getSP = (context?: WebPartContext): SPFI => {
-    if (!_sp && context) {
-        try {
-            _sp = spfi().using(SPFx(context));
-            console.log("PnP.js initialized successfully.");
-        } catch (error) {
-            console.error("Error initializing PnP.js:", error);
-        }
+export const getSP = (context: WebPartContext): SPFI => {
+    if (!_sp) {
+        // Initialize the PnPjs SP object
+        _sp = spfi().using(SPFx(context));
+        console.log("PnP.js initialized successfully for:", context.pageContext.web.absoluteUrl);
     }
-    return _sp!;
+    return _sp;
 };
