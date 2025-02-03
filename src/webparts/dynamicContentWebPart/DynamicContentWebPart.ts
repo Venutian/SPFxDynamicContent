@@ -32,7 +32,7 @@ export default class DynamicContentWebPart extends BaseClientSideWebPart<IDynami
         const element: React.ReactElement<IDynamicContentWebPartProps> = React.createElement(
             DynamicContentComponent,
             {
-                description: "Dynamisk Sidor - Prioritera och spåra länkklick dynamiskt.",
+                description: "Dynamiska Sidor - Prioritera och spåra länkklick dynamiskt.",
                 userRole: this.properties.userRole,
                 sp: this.sp,
                 context: this.context,
@@ -51,7 +51,7 @@ export default class DynamicContentWebPart extends BaseClientSideWebPart<IDynami
         return {
             pages: [
                 {
-                    header: { description: "Dynamisk Sidor Konfiguration" },
+                    header: { description: "Dynamiska Sidor Konfiguration" },
                     groups: [
                         {
                             groupName: "Inställningar",

@@ -82,14 +82,14 @@ export default class DynamicContentComponent extends React.Component<
         const items = await sp.web.lists.getByTitle(listTitle).items.filter(`Title eq 'Övriga System'`)();
         if (items.length === 0) {
             const otherItem = {
-                Title: "Other",
+                Title: "Övriga System",
                 URL: "#", // Default URL (can be edited by users)
                 ClickCounts: JSON.stringify({
                     Admin: [], // Initialize with empty click counts
                     User: [],
                 }),
                 Roles: "Admin,User", // Visible to all roles
-                Icon: "ms-Icon--Globe", // Default icon
+                Icon: "ms-Icon--InternetSharing", // Default icon
             };
 
             await sp.web.lists.getByTitle(listTitle).items.add(otherItem);
@@ -172,7 +172,7 @@ export default class DynamicContentComponent extends React.Component<
         const listTitle = this.props.listName || "KlickPrioritet";
 
         const sampleItem = {
-            Title: "Admin Dashboard",
+            Title: "Test Page",
             URL: "/sites/admin",
             ClickCounts: JSON.stringify({
                 Admin: [{ timestamp: new Date().toISOString() }],
@@ -251,8 +251,8 @@ export default class DynamicContentComponent extends React.Component<
             roleFilteredPages.sort((a, b) => b.clicks - a.clicks);
 
             // Ensure only 10 buttons are shown, with "Other" always as the last one
-            const displayedPages = roleFilteredPages.slice(0, 9);
-            const otherButton = roleFilteredPages.find((page) => page.title === "Other");
+            const displayedPages = roleFilteredPages.slice(0, 11);
+            const otherButton = roleFilteredPages.find((page) => page.title === "Övriga System");
             if (otherButton) {
                 displayedPages.push(otherButton);
             }

@@ -13,7 +13,7 @@
   "preconfiguredEntries": [{
     "groupId": "5c03119e-3074-46fd-976b-c60198311f70",
     "group": { "default": "Advanced" },
-    "title": { "default": "Dynamisk Sidor" },
+    "title": { "default": "Dynamiska Sidor" },
     "description": { "default": "Prioritera och spåra länkklick dynamiskt." },
     "officeFabricIconFontName": "RowsChild",
     "properties": {
