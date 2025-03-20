@@ -1,23 +1,26 @@
-import * as React from 'react';
-import { IDynamicContentWebPartProps, ILinkItem } from './IDynamicContentWebPartProps';
-import styles from './DynamicContentWebPart.module.scss';
+import * as React from "react";
+import { IDynamicContentWebPartProps, ILinkItem } from "./IDynamicContentWebPartProps";
+import styles from "./DynamicContentWebPart.module.scss";
 import "@pnp/sp/lists";
 import "@pnp/sp/items";
 import "@pnp/sp/webs/index";
 import "@pnp/sp/fields/list";
+import "@pnp/sp/site-users/web";
 
 // Define an interface for each click entry
 interface IClickEntry {
     timestamp: string;
 }
 
-// Define a type for the ClickCounts object mapping roles to arrays of click entries
+// Define a type for the ClickCounts object mapping group names to arrays of click entries
 type IClickCounts = {
-    [role: string]: IClickEntry[];
+    [group: string]: IClickEntry[];
 };
 
+// Extend the state to also store the current user's groups
 interface IDynamicContentWebPartState {
     pages: ILinkItem[];
+    userGroups: string[];
 }
 
 export default class DynamicContentComponent extends React.Component<
@@ -26,21 +29,35 @@ export default class DynamicContentComponent extends React.Component<
 > {
     constructor(props: IDynamicContentWebPartProps) {
         super(props);
-        this.state = { pages: [] };
+        this.state = { pages: [], userGroups: [] };
     }
 
     public async componentDidMount(): Promise<void> {
-        if (!this.props.sp) {
+        const sp = this.props.sp;
+        if (!sp) {
             console.error("SharePoint instance (sp) is undefined. Please ensure that 'sp' is passed as a prop.");
             return;
         }
-        await this.cleanUpOldDataBasedOnLatestEntry();
-        await this.loadPages();
+
+        try {
+            const groups = await sp.web.currentUser.groups();
+            const userGroupNames = groups.map(group => group.Title);
+            console.log("Current user groups:", userGroupNames);
+
+            // Save the groups in the component state
+            this.setState({ userGroups: userGroupNames });
+
+            // Clean up old data and load pages using these groups
+            await this.cleanUpOldDataBasedOnLatestEntry();
+            await this.loadPages(userGroupNames);
+        } catch (error) {
+            console.error("Error fetching current user's groups:", error);
+        }
     }
 
     /**
      * Cleans up old click count entries for each item.
-     * For each role’s click entries, it sorts them (newest first)
+     * For each group's click entries, it sorts them (newest first)
      * and removes any entry older than 7 days before the latest entry.
      */
     private async cleanUpOldDataBasedOnLatestEntry(): Promise<void> {
@@ -60,33 +77,32 @@ export default class DynamicContentComponent extends React.Component<
                 const clickCounts: IClickCounts = JSON.parse(item.ClickCounts || "{}");
                 let shouldUpdate = false;
 
-                // Iterate over each role’s click entries
-                for (const role in clickCounts) {
-                    if (!Array.isArray(clickCounts[role])) continue;
+                // Iterate over each group's click entries
+                for (const group in clickCounts) {
+                    if (!Array.isArray(clickCounts[group])) continue;
 
                     // Sort click entries so that index 0 is the newest
-                    clickCounts[role].sort((a: IClickEntry, b: IClickEntry) =>
+                    clickCounts[group].sort((a: IClickEntry, b: IClickEntry) =>
                         new Date(b.timestamp).valueOf() - new Date(a.timestamp).valueOf()
                     );
 
-                    if (clickCounts[role].length === 0) continue;
+                    if (clickCounts[group].length === 0) continue;
 
                     // Use the latest timestamp as reference and set cutoff to 7 days before
-                    const latestTimestamp = new Date(clickCounts[role][0].timestamp);
+                    const latestTimestamp = new Date(clickCounts[group][0].timestamp);
                     const cutoff = new Date(latestTimestamp.valueOf() - 7 * 24 * 60 * 60 * 1000);
 
                     // Filter out any entries older than the cutoff
-                    const filtered = clickCounts[role].filter((entry: IClickEntry) =>
+                    const filtered = clickCounts[group].filter((entry: IClickEntry) =>
                         new Date(entry.timestamp) >= cutoff
                     );
 
-                    if (filtered.length !== clickCounts[role].length) {
+                    if (filtered.length !== clickCounts[group].length) {
                         shouldUpdate = true;
-                        clickCounts[role] = filtered;
+                        clickCounts[group] = filtered;
                     }
                 }
 
-                // If any role’s entries were updated, write the changes back to SharePoint
                 if (shouldUpdate) {
                     await sp.web.lists
                         .getByTitle(listName)
@@ -104,21 +120,20 @@ export default class DynamicContentComponent extends React.Component<
     }
 
     /**
-     * Loads pages from SharePoint, calculates click counts based on the user's role,
+     * Loads pages from SharePoint, calculates click counts based on the user's groups,
      * and prepares the list of pages. The "Övriga System" button is separated out
      * so it is not sorted or ranked and appears only once at the end.
      */
-    private async loadPages(): Promise<void> {
+    private async loadPages(userGroups: string[]): Promise<void> {
         const sp = this.props.sp;
         if (!sp) {
             console.error("SharePoint instance (sp) is undefined in loadPages.");
             return;
         }
         const listName = this.props.listName || "KlickPrioritet";
-        const userRole = this.props.userRole || "Admin";
 
-        if (!userRole) {
-            console.error("User role is missing.");
+        if (!userGroups || userGroups.length === 0) {
+            console.error("User groups are missing.");
             return;
         }
 
@@ -127,26 +142,30 @@ export default class DynamicContentComponent extends React.Component<
         try {
             const items = await sp.web.lists
                 .getByTitle(listName)
-                .items.select("Id", "Title", "URL", "ClickCounts", "Roles", "Icon")();
+                .items.select("Id", "Title", "URL", "ClickCounts", "Groups", "Icon")();
 
             const pages = items.map((item) => {
                 const clickCounts: IClickCounts = JSON.parse(item.ClickCounts || "{}");
-                const totalClicks = (clickCounts[userRole] || []).length;
+                const totalClicks = userGroups.reduce((acc, group) => {
+                    return acc + ((clickCounts[group] || []).length);
+                }, 0);
                 return {
                     id: item.Id,
                     title: item.Title,
                     url: item.URL,
                     clicks: totalClicks,
-                    roles: item.Roles.split(","),
+                    groups: item.Groups.split(","),
                     icon: item.Icon,
                 } as ILinkItem;
             });
 
-            // Filter pages visible to the current user
-            const roleFilteredPages = pages.filter((page) => page.roles.includes(userRole));
+            // Filter pages: a page is visible if at least one of the user's groups is in the page's allowed groups
+            const groupFilteredPages = pages.filter((page) =>
+                userGroups.some(group => page.groups.includes(group))
+            );
             // Separate the "Övriga System" button from ranked pages
-            const otherButton = roleFilteredPages.find((page) => page.title === "Övriga System");
-            const rankedPages = roleFilteredPages.filter((page) => page.title !== "Övriga System");
+            const otherButton = groupFilteredPages.find((page) => page.title === "Övriga System");
+            const rankedPages = groupFilteredPages.filter((page) => page.title !== "Övriga System");
 
             // Sort ranked pages descending by click count
             rankedPages.sort((a, b) => b.clicks - a.clicks);
@@ -167,7 +186,7 @@ export default class DynamicContentComponent extends React.Component<
      * Handles a page click by updating its click count in SharePoint
      * (if it is not the "Övriga System" button) and then updating local state.
      */
-    private async handlePageClick(pageId: number, userRole: string): Promise<void> {
+    private async handlePageClick(pageId: number, userGroups: string[]): Promise<void> {
         const sp = this.props.sp;
         if (!sp) {
             console.error("SharePoint instance (sp) is undefined in handlePageClick.");
@@ -182,12 +201,12 @@ export default class DynamicContentComponent extends React.Component<
                 .select("ClickCounts")();
 
             const clickCounts: IClickCounts = JSON.parse(item.ClickCounts || "{}");
-            if (!clickCounts[userRole]) {
-                clickCounts[userRole] = [];
-            }
-
-            // Add a new click entry with the current timestamp
-            clickCounts[userRole].push({ timestamp: new Date().toISOString() });
+            userGroups.forEach(group => {
+                if (!clickCounts[group]) {
+                    clickCounts[group] = [];
+                }
+                clickCounts[group].push({ timestamp: new Date().toISOString() });
+            });
 
             await sp.web.lists.getByTitle(listName).items.getById(pageId).update({
                 ClickCounts: JSON.stringify(clickCounts),
@@ -197,7 +216,9 @@ export default class DynamicContentComponent extends React.Component<
             // Update local state with the new click count for the clicked page
             const updatedPages = this.state.pages.map((page) => {
                 if (page.id === pageId) {
-                    const currentClicks = (clickCounts[userRole] || []).length;
+                    const currentClicks = userGroups.reduce((acc, group) => {
+                        return acc + ((clickCounts[group] || []).length);
+                    }, 0);
                     return { ...page, clicks: currentClicks };
                 }
                 return page;
@@ -219,7 +240,7 @@ export default class DynamicContentComponent extends React.Component<
     }
 
     public render(): React.ReactElement<IDynamicContentWebPartProps> {
-        const { pages } = this.state;
+        const { pages, userGroups } = this.state;
 
         return (
             <section className={styles.dynamicContentWebPart}>
@@ -236,7 +257,7 @@ export default class DynamicContentComponent extends React.Component<
                                 if (page.title === "Övriga System") {
                                     window.open(page.url, '_blank');
                                 } else {
-                                    this.handlePageClick(page.id, this.props.userRole)
+                                    this.handlePageClick(page.id, userGroups)
                                         .then(() => {
                                             window.open(page.url, '_blank');
                                         })

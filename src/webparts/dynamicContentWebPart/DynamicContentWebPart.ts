@@ -33,7 +33,6 @@ export default class DynamicContentWebPart extends BaseClientSideWebPart<IDynami
             DynamicContentComponent,
             {
                 description: "Dynamiska Sidor - Prioritera och spåra länkklick dynamiskt.",
-                userRole: this.properties.userRole,
                 sp: this.sp,
                 context: this.context,
                 listName: this.properties.listName
