@@ -1,6 +1,9 @@
 import * as React from "react";
+import "@pnp/graph/presets/all";
+import { graphfi, SPFx as graphSPFx, GraphFI } from "@pnp/graph";
 import { IDynamicContentWebPartProps, ILinkItem } from "./IDynamicContentWebPartProps";
 import styles from "./DynamicContentWebPart.module.scss";
+import { DirectoryObject, Group } from "@microsoft/microsoft-graph-types";
 import "@pnp/sp/lists";
 import "@pnp/sp/items";
 import "@pnp/sp/webs/index";
@@ -27,33 +30,31 @@ export default class DynamicContentComponent extends React.Component<
     IDynamicContentWebPartProps,
     IDynamicContentWebPartState
 > {
+    private _graph: GraphFI;
     constructor(props: IDynamicContentWebPartProps) {
         super(props);
         this.state = { pages: [], userGroups: [] };
+        this._graph = graphfi().using(graphSPFx(this.props.context));
+
     }
 
     public async componentDidMount(): Promise<void> {
-        const sp = this.props.sp;
-        if (!sp) {
-            console.error("SharePoint instance (sp) is undefined. Please ensure that 'sp' is passed as a prop.");
-            return;
-        }
-
         try {
-            const groups = await sp.web.currentUser.groups();
-            const userGroupNames = groups.map(group => group.Title);
-            console.log("Current user groups:", userGroupNames);
+            const memberOf = await this._graph.me.memberOf<DirectoryObject[]>(); // use this._graph
+            const userGroups = memberOf
+                .map(d => (d as Group).displayName)
+                .filter((name): name is string => !!name);
 
-            // Save the groups in the component state
-            this.setState({ userGroups: userGroupNames });
+            console.log("All AAD groups (any type):", userGroups);
+            this.setState({ userGroups });
 
-            // Clean up old data and load pages using these groups
             await this.cleanUpOldDataBasedOnLatestEntry();
-            await this.loadPages(userGroupNames);
-        } catch (error) {
-            console.error("Error fetching current user's groups:", error);
+            await this.loadPages(userGroups);
+        } catch (err) {
+            console.error("Error fetching all AAD memberships:", err);
         }
     }
+
 
     /**
      * Cleans up old click count entries for each item.
